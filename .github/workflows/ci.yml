@@ -1,0 +1,53 @@
+name: CI
+
+# 每次 push / PR 跑一遍完整的质量闸。
+#
+# 三道闸的顺序是：类型 → 风格 → 单测。
+# `pnpm check` 一次跑完这三步，本地与 CI 用的是**同一条命令** ——
+# 分成两条命令的话，迟早出现"本地过了 CI 没过"这种查半天的差异。
+#
+# ⚠️ **这里刻意不跑 `next build`。**
+# 本项目的 RSC 直连数据库，构建期会真正去连库；在 CI 里跑需要把数据库
+# 连接串塞进 secrets，而它验证的东西（能否打包）与部署平台重复。
+# 生产构建由 Vercel 负责，本地用 `pnpm build` 手动验证。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      # 类型检查需要 Prisma 生成的客户端，否则 @db/client 解析不到
+      - name: 生成 Prisma Client
+        run: pnpm db:generate
+        env:
+          # generate 只需要 schema，不连库；给个占位串避免配置读取失败
+          DATABASE_URL: "file:./ci-placeholder.db"
+
+      - name: 类型检查 + ESLint + 单测
+        run: pnpm check
+        env:
+          DATABASE_URL: "file:./ci-placeholder.db"
+
+      # 注：schema 两个变体与模板是否同步，已经由 tests/schema-sync.test.ts
+      # 断言过了（它读模板渲染一遍再比对）。这里不再重复一次 ——
+      # 冗余的 CI 步骤只会拖慢流水线，并给将来制造两处需要同步修改的地方。

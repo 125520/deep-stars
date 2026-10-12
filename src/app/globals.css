@@ -1,0 +1,1461 @@
+@import "tailwindcss";
+
+/* ══════════════════════════════════════════════════════════════════
+   Deep Stars · 深星 —— 设计令牌
+   ══════════════════════════════════════════════════════════════════
+
+   风格定位：**深空观测台**
+     · 整体 = 深靛夜空底 + 紫色强调 + 辉光，安静、有纵深
+     · 星图 = 面板内更浓的一块「观测窗」，比页面底再暗一档
+
+   关于底色，这里换过一次方向，把两边的取舍都记下来：
+     先前是**全白底**，理由是长文阅读与截图分享更稳。
+     但背景里的流星在浅底上根本立不住 —— 白线在白底上等于没画，
+     换成饱和色又会和主色打架，怎么调都别扭。
+     深底一次性解决了这件事：流星可以就是**白光**本身，
+     与真实夜空一致，也不需要为配色做任何妥协。
+
+   底色不用纯黑：真实夜空是带紫的深靛，纯黑显得廉价且丢层次。
+   阶差按「页面 → 面板 → 观测窗」三段拉开，卡片才能从底上浮起来。
+
+   ══════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* ── 深色底色阶 ──
+     刻意比 --color-void 更暗：观测窗用的是 void/deep，
+     页面底必须比它再深一档，那块面板才立得住。 */
+  --color-canvas: #050412;
+  --color-surface: #0c0922;
+  --color-surface-2: #120e2c;
+  --color-surface-3: #1a1540;
+  --color-line: #221c46;
+  --color-line-2: #332a60;
+
+  /* ── 文本（带一点紫调，避免死灰）── */
+  --color-ink: #f3f0ff;
+  --color-ink-muted: #a8a1c8;
+  --color-ink-dim: #726a99;
+
+  /* ── 紫：主强调 ──
+     Tailwind 内置的 violet 系列被这里整体覆盖，
+     以保证 50→900 是同一套色相，不会出现「深浅不同源」的脏色。 */
+  --color-violet-50: #f6f3ff;
+  --color-violet-100: #ede7ff;
+  --color-violet-200: #ddd2ff;
+  --color-violet-300: #c3b0ff;
+  --color-violet-400: #9e82ff;
+  --color-violet-500: #7c5cff;
+  --color-violet-600: #6d4aff;
+  --color-violet-700: #5a35e8;
+  --color-violet-800: #4826bc;
+  --color-violet-900: #3a1f94;
+
+  /* ── 深空：仅用于「观测窗」面板内部 ──
+     刻意不用纯黑 —— 真实夜空是带紫的深靛，纯黑会显得廉价且丢层次。 */
+  --color-void: #07061a;
+  --color-deep: #0e0b2b;
+  --color-deep-2: #171139;
+  --color-deep-line: #2a2154;
+
+  /* ── 星色：按恒星光谱分类（Morgan–Keenan 体系）──
+     真实星空的颜色不是随机的，它由表面温度决定：
+     O/B 蓝白 → A 白 → F 黄白 → G 黄 → K 橙 → M 红。
+     按这个体系配色，才会有「抬头看深空」的熟悉感。 */
+  --color-star-o: #aabfff; /* O/B 型 · 蓝白 · 表面最热 */
+  --color-star-a: #cad7ff; /* A 型 · 纯白 */
+  --color-star-f: #f6f4ff; /* F 型 · 黄白 */
+  --color-star-g: #fff3e0; /* G 型 · 黄（太阳这一档）*/
+  --color-star-k: #ffd2a1; /* K 型 · 橙 */
+  --color-star-m: #ffb07a; /* M 型 · 红橙 · 表面最冷 */
+
+  /* ── 星云紫：深空里的辉光 ── */
+  --color-nebula: #8b6bff;
+  --color-nebula-soft: #b9a5ff;
+
+  /* ── 语义 ── */
+  --color-ok: #12b981;
+  --color-warn: #f59e0b;
+  --color-danger: #ef4444;
+
+  /* ── 字体 ── */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC",
+    "Noto Sans CJK SC", sans-serif;
+  --font-mono:
+    ui-monospace, "SFMono-Regular", "JetBrains Mono", "Cascadia Code",
+    Consolas, monospace;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   基础层
+   ══════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    /* 细颗粒纹理。用 SVG 的 feTurbulence 现场生成，不需要额外的图片资源。
+       feColorMatrix 去饱和 —— **彩色噪点会显脏，灰噪点才是"材质"**。
+       磨砂面与清玻璃面共用同一张。 */
+    --ds-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  /*
+    中文正文的行高基准。
+    拉丁字母的 1.5 对汉字偏挤 —— 汉字字面撑满 em 框、无下伸部留白，
+    1.75 才能在长段落里形成稳定的阅读节奏。
+  */
+  p {
+    line-height: 1.75;
+  }
+
+  /* 深底上的选中态要往亮里走 —— 浅底那套「淡紫底 + 深紫字」在深底上会糊成一团 */
+  ::selection {
+    background: color-mix(in oklab, var(--color-violet-500) 42%, transparent);
+    color: #ffffff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-violet-500);
+    outline-offset: 2px;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-2) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-line-2);
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--color-violet-300);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   组件层
+   ══════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  /* 深底上的卡片：靠比页面底亮一档的面色 + 极淡描边分层。
+     深底的好处是投影可以放心加重 —— 浅底重投影会显脏，深底不会。 */
+  .ds-card {
+    border-radius: 18px;
+    border: 1px solid var(--color-line);
+    background: var(--color-surface);
+    box-shadow: var(--ds-cast, 0 0 #0000);
+    transition:
+      border-color 0.25s var(--ease-out-soft),
+      box-shadow 0.25s var(--ease-out-soft),
+      translate 0.25s var(--ease-out-soft),
+      transform 0.25s var(--ease-out-soft);
+  }
+  .ds-card-hover:hover {
+    border-color: color-mix(in oklab, var(--color-violet-400) 45%, transparent);
+    box-shadow:
+      var(--ds-cast, 0 0 #0000),
+      0 12px 32px -18px rgba(0, 0, 0, 0.75);
+  }
+
+  /* ── 观测窗 ──
+     页面里唯一允许深色的区域。深色只出现在这里，
+     四周留白与圆角把它「装裱」起来，形成展示感。 */
+  .ds-viewport {
+    position: relative;
+    overflow: hidden;
+    border-radius: 24px;
+    border: 1px solid var(--color-deep-line);
+    background:
+      radial-gradient(120% 90% at 78% 8%, rgba(139, 107, 255, 0.16), transparent 58%),
+      radial-gradient(90% 70% at 12% 92%, rgba(109, 74, 255, 0.13), transparent 62%),
+      linear-gradient(165deg, var(--color-deep) 0%, var(--color-void) 100%);
+    box-shadow:
+      0 32px 64px -32px color-mix(in oklab, var(--color-violet-900) 70%, transparent),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  }
+
+  /* 观测窗顶部的玻璃高光 —— 让它读起来像一块「屏幕/舷窗」而非一块黑图 */
+  .ds-viewport::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.07) 0%,
+      transparent 22%,
+      transparent 100%
+    );
+  }
+
+  /* 暗角：让观测窗读起来像一块有景深的舷窗，而不是一张贴上去的黑图 */
+  .ds-viewport::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      118% 100% at 50% 46%,
+      transparent 52%,
+      color-mix(in oklab, var(--color-void) 62%, transparent) 100%
+    );
+  }
+
+  /* 深色区域内的文字色 */
+  .ds-on-deep {
+    color: #e9e6ff;
+  }
+  .ds-on-deep-muted {
+    color: #a9a2d4;
+  }
+
+  /* 紫色主按钮的辉光（白底上要克制，否则显廉价）*/
+  .ds-glow-violet {
+    box-shadow: 0 10px 30px -12px color-mix(in oklab, var(--color-violet-600) 75%, transparent);
+  }
+
+  .ds-hairline {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--color-violet-300) 30%, transparent),
+      transparent
+    );
+  }
+
+  /* 深色卡片上的发丝线。
+     不能复用 .ds-hairline —— 它用的是浅紫灰（--color-line-2），
+     压在厚紫卡面上几乎不可见，等于没画。这里换成半透明的浅紫。 */
+  .ds-hairline-deep {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(196, 181, 255, 0.34),
+      transparent
+    );
+  }
+
+  /* 星等徽标（白底版）*/
+  .ds-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    border: 1px solid var(--color-line);
+    background: var(--color-surface);
+    padding: 5px 11px;
+    font-size: 12px;
+    color: var(--color-ink-muted);
+  }
+
+  /* ── 厚紫卡片 ──
+     用于需要「有分量」的展示型卡片。
+     不是把白卡刷成紫色那么简单：深色块的立体感全靠三样东西 ——
+     对角渐变给出受光方向、顶部内高光给出边缘、外投影把它从白底上托起来。
+     少了任何一样都会变成一块死紫的色块。
+     与 .ds-card 一样留出 --ds-cast 锚点供层叠布局追加投影。 */
+  .ds-card-deep {
+    position: relative;
+    border-radius: 18px;
+    border: 1px solid color-mix(in oklab, var(--color-violet-400) 30%, transparent);
+    background:
+      radial-gradient(120% 100% at 82% 4%, rgba(139, 107, 255, 0.34), transparent 58%),
+      linear-gradient(158deg, #2c2069 0%, #1c1443 52%, #120d2e 100%);
+    box-shadow:
+      var(--ds-cast, 0 0 #0000),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+      0 26px 50px -30px rgba(23, 19, 38, 0.75);
+  }
+  /* 顶部一道极细的紫光，暗示「这是一块被照亮的面板」 */
+  .ds-card-deep::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      rgba(196, 181, 255, 0.14) 0%,
+      transparent 30%
+    );
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     玻璃面板 · 两种
+     ══════════════════════════════════════════════════════════════════
+
+     两者共用同一套"框"的语汇（描边 + 上下棱光 + 细颗粒），只有**面**不同：
+
+       ds-glass-frost  磨砂玻璃 —— 背景被模糊掉，用于核心能力那一块
+       ds-glass-clear  清玻璃   —— 完全透明，用于增强特性那一块的立体陈列
+
+     分两种是有意的：磨砂面把注意力收在文字上（核心能力是"读"的内容），
+     清玻璃让背景穿过去（增强特性是"陈列"的内容）。 */
+
+  /* ── 磨砂玻璃 ──
+     backdrop-filter 是玻璃与"半透明色块"的分界 —— 它让透过去的东西变模糊。
+     只把底色调透明而不加模糊，得到的是有色玻璃纸。
+
+     ⚠️ 不要手写 -webkit-backdrop-filter。
+     Lightning CSS 会把同族声明合并成只剩前缀那一条，而现行 Chrome 已移除该别名
+     （CSS.supports 实测为 false），结果是两条全废、模糊悄悄消失。交给构建器自动补。 */
+  .ds-glass-frost {
+    position: relative;
+    border-radius: 22px;
+    border: 1px solid rgba(168, 143, 255, 0.26);
+    background: transparent;
+    backdrop-filter: blur(14px) saturate(150%);
+    box-shadow:
+      var(--ds-cast, 0 0 #0000),
+      inset 0 1px 0 0 rgba(226, 217, 255, 0.26),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.42),
+      0 20px 50px -26px rgba(0, 0, 0, 0.7);
+  }
+  .ds-glass-frost::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      158deg,
+      rgba(255, 255, 255, 0.07) 0%,
+      rgba(255, 255, 255, 0.02) 22%,
+      transparent 42%,
+      transparent 78%,
+      rgba(196, 181, 255, 0.04) 100%
+    );
+  }
+  .ds-glass-frost::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.16;
+    mix-blend-mode: overlay;
+    background-image: var(--ds-grain);
+    background-size: 140px 140px;
+  }
+  .ds-glass-frost-hover:hover {
+    border-color: rgba(186, 164, 255, 0.5);
+    box-shadow:
+      var(--ds-cast, 0 0 #0000),
+      inset 0 1px 0 0 rgba(236, 229, 255, 0.4),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.42),
+      0 26px 62px -28px rgba(0, 0, 0, 0.8);
+  }
+
+  /* ── 清玻璃 ──
+     不模糊。透过它看到的**就是背景本身**，星点阵、土星环、流星都清晰。
+
+     这和磨砂是一对互相矛盾的诉求：糊掉之后你看见的是玻璃，不是背景。
+     所以清玻璃的质感全部交给**上下边缘的反光** —— 这也正是真实情形：
+     一块干净的玻璃本身看不见，**能看见的只有它在边界处折射与反射的光**。
+     质感不在面上，在边上。 */
+  .ds-glass-clear {
+    position: relative;
+    border-radius: 10px;
+    /* 框条外口。比里口亮 —— 两条平行线一起才读成"有宽度的框"。 */
+    border: 1px solid rgba(196, 181, 255, 0.46);
+    background: transparent;
+    box-shadow:
+      var(--ds-cast, 0 0 #0000),
+      /* ── 菲涅耳渐浓（本轮新增）──
+         真实玻璃在掠射角反射更强：正对看中心几乎全透，越靠边缘越"实"。
+         这两层就是它 —— 贴边压暗，紧随其内一道亮圈。
+
+         **这是"保留通透"与"增加质量"能同时成立的唯一办法**：
+         质量全部堆在轮廓附近，中心 40% 一点不动。
+         暗与亮必须成对出现 —— 只有暗圈读成脏，只有亮圈读成描边。 */
+      inset 0 0 26px -8px rgba(10, 7, 28, 0.6),
+      inset 0 0 7px -3px rgba(196, 181, 255, 0.28),
+      /* 框条里口：一条与外口平行的浅带 + 一条细线，框条因此有了宽度。
+         没有这两层，"边框"就只是一根发丝线，读不出相框。 */
+      inset 0 0 0 4px rgba(150, 122, 255, 0.11),
+      inset 0 0 0 5px rgba(196, 181, 255, 0.22),
+      /* 四条棱的掠光。上强、下弱、两侧居中 —— 光从上方来。
+         只做上下会显得像条纸带；四条都有，整圈轮廓才立得住。 */
+      inset 0 2px 0 0 rgba(244, 240, 255, 0.6),
+      inset 0 -2px 0 0 rgba(196, 181, 255, 0.3),
+      inset 2px 0 0 0 rgba(214, 203, 255, 0.28),
+      inset -2px 0 0 0 rgba(178, 156, 255, 0.24),
+      /* 落地：贴地一圈硬影 + 外扩一层软影。
+         透明玻璃与透明层板之间不存在"压着"的关系，这圈影子是唯一可靠的证据。 */
+      0 10px 18px -10px rgba(0, 0, 0, 0.9),
+      0 22px 34px -18px rgba(0, 0, 0, 0.7);
+  }
+  .ds-glass-clear::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.2) 0,
+        rgba(255, 255, 255, 0.06) 2px,
+        rgba(255, 255, 255, 0.02) 12px,
+        transparent 30%
+      ),
+      linear-gradient(
+        0deg,
+        rgba(196, 181, 255, 0.15) 0,
+        rgba(196, 181, 255, 0.045) 3px,
+        transparent 26%
+      ),
+      /* 极淡体色（上限 5%）。真实玻璃有"身色"，这一点点是
+         「物质」与「空虚」的分界 —— 但它绝不能构成遮挡，所以压到几乎看不见。 */
+      linear-gradient(
+        180deg,
+        rgba(196, 181, 255, 0.05) 0%,
+        transparent 42%,
+        rgba(16, 11, 40, 0.05) 100%
+      );
+  }
+  .ds-glass-clear::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.1;
+    mix-blend-mode: overlay;
+    background-image: var(--ds-grain);
+    background-size: 140px 140px;
+  }
+  .ds-glass-clear-hover:hover {
+    border-color: rgba(198, 180, 255, 0.55);
+    box-shadow:
+      var(--ds-cast, 0 0 #0000),
+      inset 0 1.5px 0 0 rgba(248, 245, 255, 0.72),
+      inset 0 -1.5px 0 0 rgba(206, 193, 255, 0.36);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     玻璃陈列：书柜
+     ══════════════════════════════════════════════════════════════════
+
+     四块方形玻璃**侧立**在一块平直的玻璃层板上。
+
+     立体感靠三样东西同时成立，缺一样就退回二维：
+
+       1. perspective  —— 没有透视，rotateY 只是"压扁"，不是"转过去"
+       2. rotateY      —— 每块绕竖轴转 7°，右缘退向屏幕里
+       3. 侧截面       —— **关键的一层**。只画正面永远是二维的；
+                          用 rotateY(90deg) 绕自身右缘把一片玻璃转出来，
+                          那块"厚度"才是"侧立"真正能被看见的原因
+
+     三者齐了，四块才会读成"立在柜子上的四块玻璃"，而不是四个矩形。 */
+  .ds-shelf {
+    /* 透视距离。
+       1400 → 4200 → 9000，一路拉长，最后落在**接近正交（轴测）**上。
+       原因是几何自洽：四块玻璃各自绕竖轴转，底边在透视下会变成斜线
+       （近端低、远端高），而书架的前缘是水平线 —— 两者对不上，
+       玻璃看上去就"浮"在书架上方。9000px 时这个斜切量降到 2px 以内，
+       肉眼不再察觉。
+
+       代价是纵深变弱，但纵深本来就不是靠畸变给的（见下）。 */
+    perspective: 9000px;
+    perspective-origin: 50% 45%;
+  }
+
+  /* ⚠️ 这一层不能省。
+     perspective 只作用于**直接子元素**。.ds-shelf 的直接子元素是这一行 flex 容器，
+     而四块玻璃是它的孙元素 —— 少了这行 preserve-3d，玻璃们拿到的是
+     **正交投影下的旋转**：只有横向压扁（宽度 × cos30°），没有纵深，
+     看起来依旧是平的。preserve-3d 把 3D 上下文透传下去，透视才真正落到玻璃上。 */
+  .ds-shelf-row {
+    position: relative;
+    /* 抬到层板之上：层板的台面是向后铺开的，本该被玻璃块挡住 */
+    z-index: 1;
+    transform-style: preserve-3d;
+  }
+
+  .ds-shelf-item {
+    position: relative;
+    transform-style: preserve-3d;
+    /* 正值：右缘退向屏幕里、左缘迎向观众 —— 于是**左侧截面**朝向观众。
+       30° 时正面压缩到 87%，文字开始发挤；22° 压到 93%，
+       几乎只是"窄体字"的程度，而厚度仍有 30×sin22° ≈ 11px，看得清清楚楚。 */
+    transform: rotateY(22deg);
+    transition: transform 0.4s var(--ease-out-soft);
+  }
+
+  /* ── 悬停 ──
+     ⚠️ 位移只能挂在 article 上，**绝不能挂在 .ds-shelf-item 上**。
+     命中区域就是 .ds-shelf-item 的投影框。它一旦位移或缩放，鼠标落在边缘时
+     就会"进去 → 元素移开 → 出来 → 复位 → 再进去"地反复触发，
+     表现为高频抖动 —— 这是个正反馈回路，不是渲染性能问题。
+
+     所以：**命中区域一动不动，位移全部交给里面的玻璃正面。**
+     这样即使正面抬走了，光标仍在静止的命中框内，hover 状态稳定。 */
+  .ds-shelf-item > article {
+    transition:
+      translate 0.3s var(--ease-out-soft),
+      scale 0.3s var(--ease-out-soft),
+      border-color 0.3s var(--ease-out-soft),
+      box-shadow 0.3s var(--ease-out-soft);
+  }
+  /* 整套阴影必须重写一遍 —— 只写一个 box-shadow 会把框条与四条棱光一起抹掉 */
+  .ds-shelf-item:hover > article {
+    translate: 0 -10px;
+    scale: 1.025;
+    border-color: rgba(212, 198, 255, 0.62);
+    box-shadow:
+      var(--ds-cast, 0 0 #0000),
+      inset 0 0 0 4px rgba(150, 122, 255, 0.07),
+      inset 0 0 0 5px rgba(206, 193, 255, 0.2),
+      inset 0 2px 0 0 rgba(252, 250, 255, 0.72),
+      inset 0 -2px 0 0 rgba(206, 193, 255, 0.34),
+      inset 2px 0 0 0 rgba(226, 217, 255, 0.32),
+      inset -2px 0 0 0 rgba(190, 170, 255, 0.28),
+      0 16px 24px -14px rgba(0, 0, 0, 0.85),
+      0 32px 64px -32px rgba(0, 0, 0, 0.9);
+  }
+
+  /* ── 玻璃块的「体」：侧截面 + 顶面 ──
+     这两片是"一块砖"与"一片板"的分界。
+
+     ⚠️ 它们挂在 article **内部**，不是外层命中区。
+     悬停位移施加在 article 上；若挂在命中区，正面抬起时这两片不动，
+     整块玻璃会散架。挂进 article 后：命中区静止（不抖），
+     正面 + 侧截面 + 顶面一起动（不散）。 */
+
+  .ds-block-3d {
+    /* 让内部的两片真正落在 3D 空间里。
+       父级 .ds-shelf-item 已经是 preserve-3d，这里再向下传一层。 */
+    transform-style: preserve-3d;
+  }
+
+  /* 侧截面（厚度）。绕**左缘**转 90°，条带的宽度就变成向后（-z）的进深。
+
+     它是整块玻璃里**光程最长**的地方 —— 视线要穿过 46px 的玻璃才出来，
+     所以这里应当是全块最"浓"的一层，而不是最淡的。
+     之前只给到 0.05→0.22、进深 30px，等于把最该有体积的地方做没了。
+
+     ⚠️ 符号与基准边必须配对：
+        · 基准边 0%（左缘）配 rotateY(90deg)
+        · 基准边 100%（右缘）配 rotateY(-90deg)
+     写反了整片会甩到观众这一侧、藏到正面之后 —— 什么都看不见，也不报错。 */
+  .ds-block-side {
+    position: absolute;
+    top: 10px;
+    bottom: 10px;
+    left: 0;
+    width: 46px;
+    transform-origin: 0% 50%;
+    transform: rotateY(90deg);
+    border-radius: 3px 0 0 3px;
+    border-left: 1px solid rgba(214, 203, 255, 0.52);
+    background:
+      /* 纵向：上缘受光更亮，向下渐浓（光从上方来） */
+      linear-gradient(
+        180deg,
+        rgba(226, 217, 255, 0.2) 0%,
+        transparent 34%,
+        rgba(10, 7, 28, 0.24) 100%
+      ),
+      /* 横向：贴正面处淡、远端浓 —— **体积感就来自这个梯度**。
+         等宽的色带无论多深都只是一块贴纸。 */
+      linear-gradient(
+        90deg,
+        rgba(139, 107, 255, 0.1) 0%,
+        rgba(160, 134, 255, 0.26) 62%,
+        rgba(96, 74, 200, 0.36) 100%
+      );
+  }
+
+  /* 顶面。**有顶面才叫"块"，没有就只是"片"。**
+
+     与书架台面用同一个 66° —— 同一个场景里不能有两套俯仰角，
+     否则两件东西看上去不在一个空间里。
+
+     ⚠️ 基准边取 100%（下缘，即块的上棱），配 **+66deg** 才向后倒。
+     这跟书架台面是同一套写法，照抄它就不会错。
+     后缘用 clip-path 整体右移 12px：轴测投影里"向后"是平移不是收窄。 */
+  .ds-block-top {
+    position: absolute;
+    right: 10px;
+    bottom: 100%;
+    left: 10px;
+    height: 46px;
+    clip-path: polygon(0 100%, 100% 100%, 100% 0, 12px 0);
+    transform-origin: 50% 100%;
+    transform: rotateX(66deg);
+    border-radius: 3px;
+    /* 顶面是全块受光最足的一面，比侧截面亮一档 */
+    background: linear-gradient(
+      180deg,
+      rgba(214, 203, 255, 0.44) 0%,
+      rgba(150, 124, 250, 0.24) 55%,
+      rgba(104, 82, 210, 0.14) 100%
+    );
+    box-shadow: inset 0 0 0 1px rgba(196, 181, 255, 0.22);
+  }
+
+  /* ── 黑磨砂亮晶层板（托底）──
+     一块**实体**板，不是一条半透明的线。
+
+     为什么必须实体：透明玻璃压在透明层板上，两者都透光，"谁在上面"
+     没有可靠线索；层板一旦做成实体，玻璃挡住的那一段就是没了，一眼可辨。
+
+     质感分三层（参考高级黑磨砂 + 亮晶幕布）：
+       横向光扫   中段被一束光扫过，两端没入暗处 —— 这是"幕布"的语汇，
+                  也是让一块长条不再均匀发死的关键
+       上缘亮晶   窄而锐的一道高光。磨砂面的反射就是这样，不是柔和渐隐
+       细颗粒     与玻璃面板共用同一张噪点，材质才同源 */
+  .ds-shelf-base {
+    position: relative;
+    height: 26px;
+    /*
+      向两侧探出，台面比陈列物宽，才读成"柜"而不是"卡片下面加条边"。
+
+      ⚠️ 探出量必须**小于页面内边距**，否则会把整页撑宽、产生横向滚动条。
+      页面用的是 px-5（20px），而这里原先写 -24px —— 超出 4px，
+      实测在 1100px 与 390px 视口下文档滚动宽都比视口多 4px。
+      （我最初只在 ≤480px 加了一条媒体查询，以为只是手机上的问题；
+      实际桌面宽度下同样存在，因为探出量是固定的而内边距也是固定的。）
+
+      改成 16px：仍然明显比陈列物宽，"柜"的读法不变，而 16 < 20 就不会溢出。
+    */
+    margin: -2px -16px 0;
+    border-radius: 4px;
+    /* 让台面那道 rotateX 真正落在 3D 空间里 */
+    transform-style: preserve-3d;
+    border-top: 1px solid rgba(248, 245, 255, 0.8);
+    background:
+      linear-gradient(
+        90deg,
+        rgba(120, 96, 220, 0.06) 0%,
+        rgba(168, 146, 255, 0.17) 36%,
+        rgba(200, 186, 255, 0.21) 52%,
+        rgba(140, 114, 240, 0.09) 74%,
+        rgba(90, 70, 170, 0.05) 100%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(178, 156, 255, 0.32) 0px,
+        rgba(40, 31, 84, 0.92) 3px,
+        rgba(16, 12, 42, 0.95) 55%,
+        rgba(6, 5, 20, 0.97) 100%
+      );
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.9),
+      0 30px 60px -26px rgba(0, 0, 0, 0.95);
+  }
+
+  /* 窄屏进一步收窄。
+     基础值已经是 16px（不溢出），这里再收到 8px 是为了让台面在窄屏上
+     不至于显得比卡片宽太多 —— 是观感调整，不是修 bug。 */
+  @media (max-width: 480px) {
+    .ds-shelf-base {
+      margin-left: -8px;
+      margin-right: -8px;
+    }
+  }
+
+  /* 板身细颗粒。透明度比玻璃面板高一档 —— 磨砂层板本来就比清玻璃更"哑"。 */
+  .ds-shelf-base::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.34;
+    mix-blend-mode: overlay;
+    background-image: var(--ds-grain);
+    background-size: 140px 140px;
+  }
+
+  /* 台面（进深）。
+     ⚠️ 这是一块**真的转过 66° 的 3D 平面**，不是画出来的平行四边形。
+     区别在于：画出来的深度是假的，随便改数字都不违和；
+     转出来的平面，投影高度由「进深 × cos 倾角」唯一确定，经得起看。
+
+     78px 的进深 × cos66° ≈ 32px 的可见深度 —— 纵深要够，但又不能
+     变成一块立着的板。clip-path 的 20px 斜切保留：轴测投影里，
+     水平面向后退是**平移**而不是收窄，后缘要整体右移。 */
+  .ds-shelf-base::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    left: 0;
+    height: 78px;
+    clip-path: polygon(0 100%, 100% 100%, 100% 0, 20px 0);
+    transform-origin: 50% 100%;
+    transform: rotateX(66deg);
+    border-radius: 4px 4px 0 0;
+    background:
+      linear-gradient(
+        90deg,
+        rgba(92, 74, 176, 0.55) 0%,
+        rgba(146, 122, 250, 0.6) 38%,
+        rgba(178, 158, 255, 0.66) 54%,
+        rgba(116, 94, 208, 0.55) 100%
+      ),
+      linear-gradient(
+        0deg,
+        rgba(58, 46, 112, 0.92) 0%,
+        rgba(30, 23, 66, 0.78) 58%,
+        rgba(18, 13, 44, 0.5) 100%
+      );
+    box-shadow: inset 0 0 0 1px rgba(150, 122, 255, 0.18);
+  }
+
+  /* ── 悬停放大 ──
+     给可点击元素一个明确的「可按」反馈。
+     缩放幅度压到 1.03：再大就会推挤相邻元素，而且显廉价。
+
+     用 scale 属性而不是 transform：这样它不会覆盖元素上已有的 transform
+     （例如卡片的错落位移、流星的滑落位移），两者会自然叠加。
+     同理，按下时缩到 0.985 ——「按下去」的触感全靠这一下。 */
+  .ds-pop {
+    transition: scale 0.22s var(--ease-out-soft);
+  }
+  .ds-pop:hover {
+    scale: 1.03;
+  }
+  .ds-pop:active {
+    scale: 0.985;
+  }
+
+  /* ── 横向循环轨道（跑马灯）──
+     把内容复制一份首尾相接，轨道整体左移 50% 即完成一个无缝循环。
+
+     无缝的关键在于**轨道宽度必须恰好是单份内容的两倍**：
+     所以间距用每项的 margin-right，而不是容器的 gap ——
+     用 gap 的话两份之间只多出一个间隙，轨道宽度就不是两倍整，
+     移到 -50% 时会差半个 gap，循环处会出现一次可见的跳变。 */
+  .ds-marquee-track {
+    /* 40s 而不是 20s：槽位从 8 增至 16（行星要与模块解耦，半轨必须同时是
+       两者数量的倍数），轨道像素宽度翻倍。时长同步翻倍才能保持原来约
+       69px/s 的速度不变 —— 否则会莫名快一倍。 */
+    animation: ds-marquee-scroll 40s linear infinite;
+  }
+  /* 悬停或键盘聚焦时暂停 —— 自动滚动的内容必须能被停下来读 */
+  .ds-marquee-track:hover,
+  .ds-marquee-track:focus-within {
+    animation-play-state: paused;
+  }
+
+  /* 两端渐隐：暗示「还能继续滑」，比硬切边高级，也避免了首尾衔接处露馅 */
+  .ds-marquee-mask {
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent 0,
+      #000 72px,
+      #000 calc(100% - 72px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0,
+      #000 72px,
+      #000 calc(100% - 72px),
+      transparent 100%
+    );
+  }
+
+  /* ── 轨道上的行星 ──
+     太阳系八大行星，尺寸由 --ds-planet-size 逐颗下发。
+
+     ── 辨识度只能来自剪影，不能来自颜色 ──
+     小尺寸下视觉系统**先认轮廓**。图标设计有个标准检验：把图标填成纯黑，
+     还能认出来才算合格。第一版八颗全是正圆、剪影完全相同，等于把辨识度
+     全押在色相上 —— 而在滚动条带里逐颗比对色相，人眼本来就做不到。
+
+     所以每颗给一样**别的行星没有的**标志物，按"能否打破剪影"分两档：
+       破剪影    土星的环、地球的月亮、天王星的竖直环 —— 一眼可辨
+       内部对比  木星的大红斑、火星的极冠、海王星的暗斑、水星的环形山
+     金星**刻意不做任何加工**：它本来就是终年云盖、毫无特征的行星，
+     "唯一一颗什么都没有的暖色球"就是它的身份。
+
+     诚实说明：水星、金星、海王星的标志物在这个尺寸下偏弱，
+     仍要靠尺寸、颜色与序列位置辅助。这是尺寸的物理下限，不是没做到位。
+
+     高光偏到 38%/32% —— 圆心正中的高光读成"贴纸"，偏一点才读成"球"。 */
+  .ds-planet {
+    position: relative;
+    flex-shrink: 0;
+    width: var(--ds-planet-size);
+    height: var(--ds-planet-size);
+    border-radius: 999px;
+    background: radial-gradient(
+      circle at 38% 32%,
+      var(--ds-planet-hi) 0%,
+      var(--ds-planet-color) 58%,
+      color-mix(in oklab, var(--ds-planet-color) 58%, #05061a) 100%
+    );
+    box-shadow: 0 0 14px -3px color-mix(in oklab, var(--ds-planet-color) 78%, transparent);
+  }
+
+  /* 土星环：压扁并倾斜的椭圆描边。宽度接近 2 倍直径 —— 环本来就比球宽得多。 */
+  .ds-planet--ring::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 198%;
+    height: 50%;
+    translate: -50% -50%;
+    rotate: -18deg;
+    border-radius: 999px;
+    border: 1.5px solid color-mix(in oklab, var(--ds-planet-hi) 72%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--ds-planet-color) 45%, transparent);
+  }
+
+  /* 木星横带：用 repeating-linear-gradient 而不是两个元素 ——
+     少一层 DOM，而且在圆角裁切下天然跟着球面走。 */
+  .ds-planet--bands::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    opacity: 0.85;
+    background: repeating-linear-gradient(
+      180deg,
+      transparent 0 24%,
+      color-mix(in oklab, var(--ds-planet-color) 50%, #7a4a26) 24% 34%,
+      transparent 34% 60%,
+      color-mix(in oklab, var(--ds-planet-hi) 48%, transparent) 60% 69%,
+      transparent 69% 100%
+    );
+  }
+
+  /* 地球的月亮。
+     偏移的小灰球 —— 它**打破了正圆剪影**，是除土星之外最容易认的一颗。 */
+  .ds-planet--moon::before {
+    content: "";
+    position: absolute;
+    right: -34%;
+    bottom: -16%;
+    width: 34%;
+    height: 34%;
+    border-radius: 999px;
+    background: radial-gradient(circle at 36% 32%, #f2f0ea 0%, #9a968e 62%, #57544e 100%);
+  }
+
+  /* 火星极冠：顶部一小片亮白。
+     属于内部标记，但对比度够高 —— 锈红底上的白点，16px 也读得出来。 */
+  .ds-planet--cap::before {
+    content: "";
+    position: absolute;
+    top: 4%;
+    left: 50%;
+    width: 48%;
+    height: 24%;
+    translate: -50% 0;
+    border-radius: 999px;
+    background: radial-gradient(
+      ellipse at 50% 38%,
+      rgba(255, 252, 246, 0.96) 0%,
+      rgba(255, 252, 246, 0.72) 58%,
+      rgba(255, 252, 246, 0) 100%
+    );
+  }
+
+  /* 天王星竖直环。
+     它的轴倾角接近 98°，环几乎是竖着的 —— 这一条**既破了剪影，
+     又把它和同为蓝色的海王星彻底分开**。 */
+  .ds-planet--vring::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 46%;
+    height: 188%;
+    translate: -50% -50%;
+    rotate: 8deg;
+    border-radius: 999px;
+    border: 1.2px solid color-mix(in oklab, var(--ds-planet-hi) 64%, transparent);
+  }
+
+  /* 木星大红斑：横带之外再给一个椭圆斑。
+     它是木星最出名的特征，且是"带上的一个点"，不与横带抢。 */
+  .ds-planet--spot::before {
+    content: "";
+    position: absolute;
+    top: 56%;
+    left: 24%;
+    width: 34%;
+    height: 22%;
+    border-radius: 999px;
+    background: radial-gradient(ellipse at 42% 40%, #d9694a 0%, #a8412a 100%);
+  }
+
+  /* 海王星大暗斑：一片更深的蓝。 */
+  .ds-planet--dspot::before {
+    content: "";
+    position: absolute;
+    top: 32%;
+    left: 46%;
+    width: 40%;
+    height: 26%;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--ds-planet-color) 36%, #060a2e);
+  }
+
+  /* 水星环形山：偏心的暗色圆。最小的一颗，标志物也只能最克制。 */
+  .ds-planet--crater::before {
+    content: "";
+    position: absolute;
+    top: 28%;
+    left: 22%;
+    width: 30%;
+    height: 30%;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--ds-planet-color) 52%, #4a453e);
+  }
+
+  /* ── 星带 ──
+     它不是一条线，也不是一条"有边界的带子" —— **它没有边界**。
+     上下沿是星点与云雾的密度降下去之后自然消失的位置，不是画出来的直线。
+     这是它和"渐变实线"的根本区别，也是"不突兀"的全部来源。
+
+     ── 为什么上一版不美观 ──（三个具体原因，都不是调参能解决的）
+       · 读成一条**虚线**：三层星点的纵向位置都落在各瓦片中部，实际只形成
+         3 排规则的点
+       · 沿走向密度完全均匀：各层周期沿 x 均等重复，没有疏密变化
+       · 有边界感：靠一条中央椭圆辉光撑厚度，而辉光本身有明确起止，
+         等于把边界画了出来
+
+     ── 改法 ──
+     分两层，因为两者需要的纵向衰减不同：
+       云雾（本元素）   散得开，负责"底"与色彩
+       星点（::before） 收得紧，负责"密度"
+
+     两层各套**幅度不同**的纵向 mask，边界就自然消失了，
+     同时带子仍有一个明确的"芯"。 */
+  .ds-star-band {
+    /* 星云云雾。
+       ⚠️ 三个约束缺一不可，上一版正是栽在第一条上：
+
+       1. **渐变必须恰好收在瓦片内。**
+          水平半径取平铺宽度的 50%、垂直半径取带高的 50%、中心居中 ——
+          这样渐变在瓦片左右边界处的亮度**正好是 0，没有可裁的东西**。
+          上一版写成 `38% at 18%`（偏心且超界），椭圆越过瓦片边界的部分
+          被 background-repeat 直接切平，于是每 520px 出现一条竖直硬边，
+          肉眼看到的就是"一段一段"。
+
+       2. **周期要远大于带高。** 周期一小就退化成"点"，读不成"云"。
+
+       3. **三层周期必须互质感**（520 / 760 / 1180px）。
+          单层按第 1 条写会变成规则的**正弦鼓包**；三层叠加后最小公倍数极大，
+          可见长度内不会重复。1180px 那层负责**大尺度的疏密起伏**
+          （一片浓、一片淡）—— 这正是"自然"的来源。
+
+       background-position 逐层错相，避免三层的最低点落在同一处。 */
+    background-image:
+      radial-gradient(ellipse 50% 50% at 50% 50%, rgba(139, 107, 255, 0.34), transparent 100%),
+      radial-gradient(ellipse 46% 50% at 50% 50%, rgba(96, 74, 200, 0.28), transparent 100%),
+      radial-gradient(ellipse 50% 50% at 50% 50%, rgba(186, 140, 255, 0.22), transparent 100%);
+    background-size:
+      520px 100%,
+      760px 100%,
+      1180px 100%;
+    background-position:
+      0 0,
+      173px 0,
+      411px 0;
+    background-repeat: repeat;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 50%, transparent 100%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 50%, transparent 100%);
+  }
+
+  /* 星点层。
+     三个互除不尽的周期（61 / 97 / 43px）× 三种**纵向平铺高度**（9 / 11 / 7px）。
+     纵向平铺高度小于带高，于是每层自己在纵向重复 2~3 次，
+     三层叠加后形成 6~8 排交错的点 —— 不再是上一版那 3 排规则点。
+
+     密度刻意压低（点径 0.45~0.8px，透明度 0.45~0.8）：
+     **星空的质感来自留白，不来自数量。** 太密会"麻"。 */
+  .ds-star-band::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.8) 0.6px, transparent 0.95px),
+      radial-gradient(circle at 68% 62%, rgba(214, 203, 255, 0.6) 0.8px, transparent 1.2px),
+      radial-gradient(circle at 14% 30%, rgba(255, 255, 255, 0.45) 0.45px, transparent 0.8px);
+    background-size:
+      61px 9px,
+      97px 11px,
+      43px 7px;
+    background-repeat: repeat;
+    /* 比云雾收得更紧，于是"芯"明确、边界却没有 */
+    -webkit-mask-image: linear-gradient(180deg, transparent 14%, #000 50%, transparent 86%);
+    mask-image: linear-gradient(180deg, transparent 14%, #000 50%, transparent 86%);
+  }
+
+  /* ── 星图坐标纸 ──
+     纯白太空会显单调。这里铺一层「天文坐标纸」：
+     细密星点阵列（22px）+ 稀疏经纬线（110px），
+     与真实星图上的赤经赤纬网格同构，而不是随便加个噪点。
+     透明度压到几乎看不见 —— 它负责「有质感」，不负责「被注意到」。 */
+  /* 深底上这层坐标纸要反过来调：浅底时期靠「压到几乎看不见」来克制，
+     深底上同样的透明度会彻底消失。改用更亮的紫，但依然只到「隐约可辨」。 */
+  .ds-celestial-grid {
+    background-image:
+      radial-gradient(
+        circle,
+        color-mix(in oklab, var(--color-violet-200) 34%, transparent) 0.7px,
+        transparent 0.8px
+      ),
+      linear-gradient(
+        to right,
+        color-mix(in oklab, var(--color-violet-300) 13%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in oklab, var(--color-violet-300) 13%, transparent) 1px,
+        transparent 1px
+      );
+    background-size:
+      22px 22px,
+      110px 110px,
+      110px 110px;
+  }
+
+  /* 纹样的渐隐遮罩。
+     纹样只该出现在「空白处」，不该爬到文字底下 —— 经纬线横穿标题会直接
+     损害可读性。用一个径向遮罩把中间的内容区挖空，只在四周留纹理。
+
+     卡片改成全透明玻璃之后，这个遮罩要**收紧**：
+     原来中部几乎是全空的，玻璃背后没东西可透，就只是一圈描边。
+     收紧之后纹理透过玻璃隐约可见（还会被 backdrop-filter 模糊掉），
+     玻璃才有内容。 */
+  .ds-celestial-fade {
+    -webkit-mask-image: radial-gradient(124% 92% at 50% 44%, transparent 0%, #000 46%);
+    mask-image: radial-gradient(124% 92% at 50% 44%, transparent 0%, #000 46%);
+  }
+
+  /* ── 流星 ──
+     白光。深空里流星本来就是白的 —— 之前的琥珀金是为了「在浅底上看得见」
+     而做的妥协，底色换成深靛之后这个妥协不再需要。
+
+     结构拆成三层，各管一件事：
+       .ds-meteor        定位 + 飞行（唯一的位移来源）
+       ::before  尾迹    长、带辉光、从尾到头依次熄灭
+       ::after   头部    不规则光芒（没有圆形轮廓） */
+  .ds-meteor {
+    --ds-meteor-dur: 4s;
+    --ds-meteor-delay: 0s;
+    position: absolute;
+    height: 8px;
+    rotate: 150deg;
+    opacity: var(--ds-meteor-opacity, 0.9);
+    animation: ds-meteor-fly var(--ds-meteor-dur) linear var(--ds-meteor-delay) infinite;
+  }
+
+  /* 尾迹。四个关键决定：
+     1. clip-path 收成从尾到头张开的楔形 —— 拖尾不是等宽线段。
+        但**必须收得很细**（头部也只有 3.8px）：第一版做到 12px 高，
+        实心填充后整条读起来像一根粗灰棍，完全不像发光的痕。
+     2. **光芒靠 filter 的 drop-shadow，不靠加宽渐变层。**
+        渐变只能改变同一块形状内部的颜色，画不出「溢出边界的光」；
+        要那种散射感必须真的模糊。两层叠加：
+          内层紧而亮 → 发光体本身
+          外层散而淡 → 空气里的散射
+     3. 用 mask 从右往左收来熄灭，而不是用 opacity。
+        opacity 是整条一起淡，顺序是错的；mask 收拢才能做到
+        「尾梢先没、逐步逼近头部」—— 尾梢是最早留下的，也本该最早消散。 */
+  .ds-meteor::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    clip-path: polygon(0 50%, 100% 26%, 100% 74%);
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.05) 36%,
+      rgba(255, 255, 255, 0.3) 68%,
+      rgba(255, 255, 255, 0.78) 88%,
+      #ffffff 100%
+    );
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.9))
+      drop-shadow(0 0 12px rgba(196, 181, 255, 0.55));
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 26%, #000 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 26%, #000 100%);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: right center;
+    mask-position: right center;
+    animation: ds-meteor-wake var(--ds-meteor-dur) linear var(--ds-meteor-delay) infinite;
+  }
+
+  /* 头部：不规则四芒，**没有圆形轮廓**。
+     用 clip-path 切出星形，八个顶点刻意不等距 —— 四道光因此长短不一，
+     「不规则」是顶点坐标本身带来的，不需要额外造型。
+     内部那层径向渐变只负责亮度衰减，它被 clip-path 裁掉，
+     所以画面里不会出现任何圆形。 */
+  .ds-meteor::after {
+    content: "";
+    position: absolute;
+    right: -23px;
+    top: 50%;
+    width: 46px;
+    height: 46px;
+    translate: 0 -50%;
+    /* 让光芒与飞行轴错开一点，避免看起来像印刷出来的十字 */
+    rotate: 17deg;
+    clip-path: polygon(
+      50% 0%,
+      57% 41%,
+      100% 47%,
+      59% 57%,
+      46% 100%,
+      41% 58%,
+      0% 53%,
+      43% 43%
+    );
+    background: radial-gradient(
+      circle,
+      #ffffff 0%,
+      rgba(255, 255, 255, 0.78) 20%,
+      rgba(196, 181, 255, 0.3) 46%,
+      rgba(255, 255, 255, 0) 78%
+    );
+    animation: ds-meteor-core var(--ds-meteor-dur) linear var(--ds-meteor-delay) infinite;
+  }
+
+  /* ── 图标砖：紫色填充 ──
+     线稿图标要「高级」而不是「廉价」，关键在于它得有实体感。
+     三个要素缺一不可：
+       · 上浅下深的对角渐变 —— 给出受光方向（纯色填充会像色块贴纸）
+       · 顶部内高光 + 描边 —— 给出一圈厚度
+       · 同色系外投影 —— 把它从白底上托起来
+     图标本身用白色，在紫色上对比度最高。 */
+  .ds-icon-tile {
+    position: relative;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    border: 1px solid color-mix(in oklab, var(--color-violet-700) 48%, transparent);
+    background: linear-gradient(
+      158deg,
+      var(--color-violet-400) 0%,
+      var(--color-violet-600) 54%,
+      var(--color-violet-700) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+      0 8px 18px -8px color-mix(in oklab, var(--color-violet-700) 72%, transparent);
+    transition:
+      background 0.3s var(--ease-out-soft),
+      box-shadow 0.3s var(--ease-out-soft),
+      transform 0.3s var(--ease-out-soft);
+  }
+
+  /* AI 功能的图标砖：整体更深、更冷一档（星紫方向），
+     与常规功能的极光紫形成区分，但仍在同一色系内，不会跳脱。 */
+  .ds-icon-tile-ai {
+    border-color: color-mix(in oklab, var(--color-violet-900) 55%, transparent);
+    background: linear-gradient(
+      158deg,
+      var(--color-violet-600) 0%,
+      var(--color-violet-800) 58%,
+      var(--color-violet-900) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.24),
+      0 8px 18px -8px color-mix(in oklab, var(--color-violet-900) 78%, transparent);
+  }
+
+  /* 深色卡片上的图标砖：同样用紫填充，但整体压暗一档，
+     否则在厚紫卡面上会「浮」出来，抢掉标题。 */
+  .ds-icon-tile-deep {
+    position: relative;
+    border-radius: 12px;
+    border: 1px solid rgba(196, 181, 255, 0.26);
+    background: linear-gradient(
+      158deg,
+      color-mix(in oklab, var(--color-violet-400) 78%, transparent) 0%,
+      color-mix(in oklab, var(--color-violet-700) 72%, transparent) 100%
+    );
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.22);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   动效
+   ══════════════════════════════════════════════════════════════════ */
+
+@keyframes ds-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── 每一枚已点亮星的细光芒 ────────────────────────────────────────
+   比最新那一枚小得多、慢得多。作用是让整张星图看起来是活的，
+   而不是抢注意力 —— 真正的主角仍然是最新点亮的那一枚。
+   周期取 14s（与主光芒的 9s 不成整数比），两套动画不会一起对齐。
+   ──────────────────────────────────────────────────────────────── */
+.ds-glint {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  animation:
+    ds-sparkle-spin 14s linear infinite,
+    ds-glint-twinkle 3.4s ease-in-out infinite;
+}
+
+@keyframes ds-glint-twinkle {
+  0%, 100% { opacity: 0.16; }
+  50% { opacity: 0.5; }
+}
+
+/* ── 最新点亮那枚星的十字光芒 ──────────────────────────────────────
+   两段动画叠加：外层光环顺时针缓慢旋转，两层各自明暗呼吸。
+   旋转方向：rotate 从 0 到 360deg 在 SVG 坐标系里就是**顺时针**
+   （SVG 的 y 轴向下），所以不需要额外反向。
+   周期取 9s 与 2.6s：刻意的非整数比，两段动画不会很快重新对齐，
+   看起来才像"活的"，而不是一个死循环的机械动作。
+   ──────────────────────────────────────────────────────────────── */
+@keyframes ds-sparkle-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ds-sparkle-twinkle {
+  0%, 100% { opacity: 0.34; }
+  50% { opacity: 1; }
+}
+
+.ds-sparkle-halo {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  animation:
+    ds-sparkle-spin 9s linear infinite,
+    ds-sparkle-twinkle 2.6s ease-in-out infinite;
+}
+
+.ds-sparkle-core {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  animation:
+    ds-sparkle-spin 9s linear infinite reverse,
+    ds-sparkle-twinkle 1.9s ease-in-out infinite;
+}
+
+/* 尊重系统的"减少动态效果"设置：改成一颗不动的柔光，信息不丢，只是不动 */
+@media (prefers-reduced-motion: reduce) {
+  .ds-sparkle-halo,
+  .ds-sparkle-core {
+    animation: none;
+    opacity: 0.55;
+  }
+  /* 细光芒停转，但保留一点微光 —— 信息不丢，只是不动 */
+  .ds-glint {
+    animation: none;
+    opacity: 0.3;
+  }
+}
+
+@keyframes ds-draw {
+  from {
+    stroke-dashoffset: var(--ds-dash, 400);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes ds-twinkle {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/**
+ * 土星随滚动上浮。
+ *
+ * 首屏要干净 —— 一打开就在右边压一颗巨大的行星，会和右上角那块星图抢视线，
+ * 也让人觉得页面「已经满了」。改成滚动后才从下方浮现。
+ *
+ * 用 CSS 滚动驱动动画（animation-timeline），不写一行 JS：
+ *   · 支持它的浏览器：进度直接绑在滚动位置上，可正向可逆向，天然跟手
+ *   · 不支持的浏览器：animation-duration 兜底成 1ms，动画立刻走完并停在终态，
+ *     也就是「行星恒定可见」—— 优雅降级，而不是变成一颗永远不出现的行星
+ *
+ * 位移走 transform，与元素上已有的 translate（-translate-y-1/2 做垂直居中）
+ * 是两个独立属性，会自然叠加。
+ */
+@keyframes ds-saturn-rise {
+  from {
+    transform: translate3d(0, 42vh, 0) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+.ds-saturn-rise {
+  animation: ds-saturn-rise linear both;
+  /* 不支持滚动时间轴时的兜底：立刻到终态 */
+  animation-duration: 1ms;
+  animation-timeline: scroll(root block);
+  /* 滚过页面 3%~24% 这段距离完成整个上浮 */
+  animation-range: 3% 24%;
+}
+/* 轨道左移自身宽度的 50% —— 正好是一份内容的宽度，于是首尾严丝合缝 */
+@keyframes ds-marquee-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/**
+ * 流星：右上 → 左下。
+ *
+ * ⚠️ 坐标系陷阱（踩过一次，务必记住）。
+ *
+ * 元素上同时有 `rotate: 150deg`（独立属性）与动画里的 `transform`。
+ * 按 CSS Transforms 规范，最终矩阵顺序是：
+ *     translate · rotate · scale · transform
+ * **transform 排在最后，它在「已经被旋转过的坐标系」里生效。**
+ *
+ * 所以位移不能直接写全局方向。曾经写 translate3d(-64vw, 37vw, 0)，
+ * 被 150° 旋转后的实际全局位移是 (+36.9vw, -64vw) —— 向右上方飞，
+ * 表现就是「头朝左下、却往右上倒着走」。
+ *
+ * 正确写法是给它**沿自身轴**的分量：translate3d(74vw, 0, 0)。
+ * 元素自身 +x 轴经 150° 旋转后指向 (-0.866, +0.5)，于是：
+ *     74 × (-0.866, 0.5) ≈ (-64, +37)
+ * 正好是右上→左下。
+ */
+@keyframes ds-meteor-fly {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(74vw, 0, 0);
+  }
+}
+
+/**
+ * 尾迹：从尾梢向头部依次熄灭。
+ *
+ * 用 **mask-size** 收拢，而不是用 opacity 淡出 —— 这是「符合现实规律」的关键。
+ * opacity 是整条一起变淡，读起来像整根线同时关灯；
+ * mask 从右往左收（mask-position 固定在 right），
+ * 尾梢先消失、边界逐步向头部推进，才是流星拖尾该有的消散顺序。
+ *
+ * 时间轴：0~10% 淡入；10~44% 完整；44~100% 被 mask 吃掉。
+ * 后半程占了大半，所以是「慢慢消失」而不是「到点熄灭」。
+ */
+@keyframes ds-meteor-wake {
+  0% {
+    opacity: 0;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+  }
+  10% {
+    opacity: 1;
+  }
+  44% {
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+  }
+  100% {
+    -webkit-mask-size: 0% 100%;
+    mask-size: 0% 100%;
+  }
+}
+
+/** 头部：亮得干脆，熄得也干脆 —— 70% 就没了，剩下的交给尾迹 */
+@keyframes ds-meteor-core {
+  0%,
+  5% {
+    opacity: 0;
+  }
+  14%,
+  52% {
+    opacity: 1;
+  }
+  70%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.ds-anim-rise {
+  animation: ds-rise 0.7s var(--ease-out-soft) both;
+}
+
+.ds-anim-twinkle {
+  animation: ds-twinkle 3.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  /* 循环轨道要单独处理：上面那条把时长压到 0.001ms 会让它瞬间跳到终点
+     并停住，露出一条被裁掉一半的轨道。这里直接停掉动画、回到起始位置，
+     内容仍然完整可读（只是不会自己滚动）。 */
+  .ds-marquee-track {
+    animation: none !important;
+  }
+  /* 流星同理：压到 0.001ms 会让它在终点闪一下。
+     直接不显示 —— 它是纯装饰，静止后只是几条无意义的亮线。 */
+  .ds-meteor {
+    display: none !important;
+  }
+  /* 滚动驱动的上浮同样停掉，让行星恒定可见 —— 静态页面不该有「没出现的东西」 */
+  .ds-saturn-rise {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}

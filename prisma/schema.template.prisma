@@ -1,0 +1,697 @@
+// ══════════════════════════════════════════════════════════════════
+//  Deep Stars · 数据模型 —— 唯一真源
+// ══════════════════════════════════════════════════════════════════
+//
+//  本文件是**模板**，不是 Prisma 直接读取的 schema。
+//  scripts/db-schema.mjs 把它渲染成：
+//    · prisma/schema.prisma           → SQLite（本地开发，提交进仓库）
+//    · prisma/schema.postgres.prisma  → PostgreSQL（部署到 Vercel + Neon）
+//
+//  为什么用模板而不是维护两份 schema：
+//    两者除 datasource 的 provider 一行外完全相同。手工同步两份 20+ 模型的
+//    文件必然会漂移，而漂移的表现是「本地能跑、线上缺列」这类最难查的问题。
+//    tests/schema-sync.test.ts 会锁死渲染结果与模板一致。
+//
+//  跨库兼容的写法约束（改 schema 时请遵守）：
+//    · 不用 enum —— SQLite 不支持，一律用 String + 应用层校验（zod）
+//    · 不用 Unsupported(...) —— 那会把 schema 绑死在某个库上
+//    · 向量用 Bytes —— PostgreSQL 映射为 bytea，SQLite 映射为 BLOB，
+//      相似度在应用层算；将来要用 pgvector 再单独加一列，不动这里
+//    · 不用数据库默认值函数（如 now()）—— 时间一律由应用写入
+//    · datasource **不写 url** —— Prisma 7 起 url 移到了 prisma.config.ts，
+//      连接串由运行时传给适配器（见 src/lib/prisma.ts）
+//
+// ══════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ──────────────────────────────────────────────────────────────────
+//  用户与认证（表名与字段遵循 Better Auth 的约定，勿随意改名）
+// ──────────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  /// 公开分享页的标识（/u/<handle>）。null = 未设置，不可公开访问。
+  handle     String? @unique
+  /// 是否开放公开分享页。默认关闭 —— 学习记录属于隐私，要用户主动选择公开。
+  isPublic   Boolean @default(false)
+  /// 角色：user | admin。用字符串而非枚举以兼容 SQLite。
+  role       String  @default("user")
+  /// 封禁标记。封禁后无法登录，但数据保留。
+  banned     Boolean @default(false)
+  /// 个人简介，仅公开分享页展示
+  bio        String?
+  /// VIP 不受每日 AI token 限额约束（用量仍照常记账）
+  vip        Boolean @default(false)
+  /// 每用户每日 AI token 上限覆盖值；null = 用全局默认
+  aiTokenLimit Int?
+  /// 上次弹出每日公告的日期（YYYY-MM-DD，由客户端按本地时区写入）。
+  /// 放服务端是为了跨设备去重；服务端只做字符串比较，不解释这个值。
+  announcementSeenOn String?
+
+  /// 生日（YYYY-MM-DD）。可选，注册时填。
+  ///
+  /// 存字符串而不是 DateTime，是因为它只用来查「属于哪个星座」——
+  /// 那是一次纯粹的字符串比较。存成 DateTime 反而会引入时区问题：
+  /// 用户在中国填 3 月 21 日，按 UTC 存可能变成 3 月 20 日，
+  /// 于是白羊座变成双鱼座。这个坑不值得踩。
+  ///
+  /// 为空时首次打卡用默认星座，不阻塞任何流程。
+  birthday String?
+
+  sessions      Session[]
+  accounts      Account[]
+  apiKeys       UserApiKey[]
+  avatarChanges AvatarChange[]
+  plans         Plan[]
+  planTasks     PlanTask[]
+  todos         Todo[]
+  checkins      Checkin[]
+  studyRecords  StudyRecord[]
+  constellations Constellation[]
+  stars         Star[]
+  reviewCards   ReviewCard[]
+  reviewLogs    ReviewLog[]
+  agentRuns     AgentRun[]
+  memories      UserMemory[]
+  conversations Conversation[]
+  documents     Document[]
+  docChunks     DocumentChunk[]
+  knowledgeDocs KnowledgeDoc[]
+  chatMessages  ChatMessage[]
+  notifications Notification[]
+  tokenUsages   TokenUsage[]
+
+  @@index([email])
+  @@index([role])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+/// Better Auth 的邮箱验证 / 令牌验证表
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+/// BYOK：用户自带 AI Key。
+/// keyCipher 是**对称加密后**的密文，绝不明文落库 —— 数据库泄露不等于 Key 泄露。
+/// 加密密钥来自环境变量 DEEP_STARS_SECRET，不进数据库。
+///
+/// userId 上加了唯一约束：**一人一把**。不允许多把并存 ——
+/// 选择哪一把去调用会变成一个额外的心智负担，而收益为零。
+/// 更重要的是：约束由数据库保证，而不是靠应用层"先删后建"，
+/// 后者在两个并发保存之间会漏出两行。
+model UserApiKey {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  /// 用户自定义的展示名，如「我的 DeepSeek」
+  label     String
+  /// OpenAI 兼容的 base url
+  baseUrl   String
+  model     String?
+  keyCipher String
+  /// 末四位，用于界面上辨识，不构成泄露风险
+  keyHint   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("userapikey")
+}
+
+/// 头像历史，支持一键回滚。
+/// image 存 data URL（压缩到 256×256 WebP，约 15–30KB）——
+/// 这样零对象存储也能用，Vercel 的只读文件系统也不会出问题。
+model AvatarChange {
+  id        String   @id @default(cuid())
+  userId    String
+  image     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("avatarchange")
+}
+
+// ──────────────────────────────────────────────────────────────────
+//  成长引擎：星座与星点
+// ──────────────────────────────────────────────────────────────────
+
+/// 一片星座。默认一人一座（按学期/科目可再分），用于分组星点。
+model Constellation {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  /// 主题色，取自设计令牌（aurora | nebula | starlight）
+  accent      String   @default("aurora")
+  archived    Boolean  @default(false)
+
+  /// 黄道星座标识（aries | taurus | …），决定星点按哪套模板落位。
+  /// null = 早期数据或用户没填生日，此时退回按黄金角推演的旧布局。
+  sign        String?
+
+  /// 布局详略：simple | full。
+  /// 由用户学习计划的复杂度决定（任务多、周期长 → 用完整档，星更多）。
+  complexity  String   @default("full")
+
+  /// 这个星座被点亮完成的时刻（星点占满模板时写入）。
+  /// 完成后用户可以另选一个星座继续点亮，也可以回来重新点原本这个。
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stars Star[]
+
+  @@index([userId, archived])
+  @@map("constellation")
+}
+
+/// 一枚星 = 一次打卡。
+/// 星等（magnitude）由专注时长与当天状态算出，决定它在星图上的大小与亮度。
+model Star {
+  id              String   @id @default(cuid())
+  userId          String
+  constellationId String
+  /// 该星对应的打卡；一对一
+  checkinId       String?  @unique
+  /// 星等 0..1，越大越亮
+  magnitude       Float    @default(0.3)
+  /// 在星座坐标系中的位置（0..1），由服务端按时间推演，保证可复现
+  x               Float
+  y               Float
+  /// 连线到上一枚星；首枚星为 null
+  prevStarId      String?
+  litAt           DateTime
+  createdAt       DateTime @default(now())
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  constellation Constellation  @relation(fields: [constellationId], references: [id], onDelete: Cascade)
+  checkin       Checkin?       @relation(fields: [checkinId], references: [id], onDelete: SetNull)
+
+  @@index([userId, litAt])
+  @@index([constellationId, litAt])
+  @@map("star")
+}
+
+// ──────────────────────────────────────────────────────────────────
+//  学习核心：计划 / 任务 / 待办 / 打卡 / 学习记录
+// ──────────────────────────────────────────────────────────────────
+
+model Plan {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  goal        String?
+  /// Markdown 计划文档；AI 按它拆任务
+  document    String?
+  /// 上次拆任务所用文档的哈希，用于判断文档改动后任务是否过期
+  tasksSourceHash String?
+  /// 非空 = 正在后台拆分（供界面显示「任务刷新中」）
+  tasksSplittingAt DateTime?
+  startDate   DateTime?
+  /// active | done | archived
+  status      String    @default("active")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks    PlanTask[]
+  checkins Checkin[]
+
+  @@index([userId, status])
+  @@index([userId, updatedAt])
+  @@map("plan")
+}
+
+model PlanTask {
+  id          String    @id @default(cuid())
+  planId      String
+  userId      String
+  title       String
+  description String?
+  dayNumber   Int?
+  weekNumber  Int?
+  category    String    @default("study")
+  /// pending | doing | done | skipped
+  status      String    @default("pending")
+  /// low | normal | high
+  priority    String    @default("normal")
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@index([userId, status])
+  @@index([userId, dayNumber])
+  @@map("plantask")
+}
+
+model Todo {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  completed Boolean  @default(false)
+  /// 排序用的手动序号，越小越靠前
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, completed])
+  @@index([userId, createdAt])
+  @@map("todo")
+}
+
+model Checkin {
+  id           String   @id @default(cuid())
+  userId       String
+  planId       String?
+  /// 由哪个任务完成触发
+  sourceTaskId String?
+  content      String
+  hours        Float    @default(0)
+  subject      String?
+  /// 1..5，或 freeform 文本
+  mood         String?
+  /// 今日卡点，供周度复盘聚合
+  blocker      String?
+  screenshot   String?
+  checkinDate  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  star Star?
+
+  @@index([userId, checkinDate])
+  @@index([sourceTaskId])
+  @@map("checkin")
+}
+
+model StudyRecord {
+  id           String   @id @default(cuid())
+  userId       String
+  date         DateTime
+  totalMinutes Float    @default(0)
+  subject      String?
+  checkinId    String?
+  /// timer | manual | pomodoro
+  source       String   @default("manual")
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("studyrecord")
+}
+
+// ──────────────────────────────────────────────────────────────────
+//  间隔重复（SRS · SM-2）
+// ──────────────────────────────────────────────────────────────────
+
+model ReviewCard {
+  id        String   @id @default(cuid())
+  userId    String
+  front     String
+  back      String
+  /// 以逗号分隔的标签，便于按科目筛选
+  tags      String?
+  /// 关联的计划（可选），用于把复习挂到具体学习目标上
+  planId    String?
+  /// SM-2 调度状态
+  ease      Float    @default(2.5)
+  interval  Int      @default(0)
+  reps      Int      @default(0)
+  lapses    Int      @default(0)
+  dueAt     DateTime
+  /// new | learning | review | suspended
+  state     String   @default("new")
+  /// AI 自动从文档生成的卡片会标记来源
+  source    String   @default("manual")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs ReviewLog[]
+
+  @@index([userId, dueAt])
+  @@index([userId, state])
+  @@map("reviewcard")
+}
+
+model ReviewLog {
+  id         String   @id @default(cuid())
+  cardId     String
+  userId     String
+  /// again | hard | good | easy
+  grade      String
+  /// 本次复习前的间隔（天），用于统计
+  prevInterval Int
+  nextInterval Int
+  easeAfter  Float
+  reviewedAt DateTime @default(now())
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card ReviewCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId, reviewedAt])
+  @@index([userId, reviewedAt])
+  @@map("reviewlog")
+}
+
+// ──────────────────────────────────────────────────────────────────
+//  AI 智能体
+// ──────────────────────────────────────────────────────────────────
+
+model AgentRun {
+  id          String    @id @default(cuid())
+  userId      String
+  /// planner | coach | split | chat
+  mode        String    @default("planner")
+  goal        String
+  /// queued | running | succeeded | failed | cancelled
+  status      String    @default("queued")
+  currentStep Int       @default(0)
+  maxSteps    Int       @default(12)
+  summary     String?
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps AgentStep[]
+
+  @@index([userId, updatedAt])
+  @@index([userId, status])
+  @@map("agentrun")
+}
+
+model AgentStep {
+  id         String    @id @default(cuid())
+  runId      String
+  stepNumber Int
+  /// thought | tool | observe | answer
+  kind       String
+  /// pending | running | done | failed
+  status     String    @default("pending")
+  title      String
+  detail     String?
+  /// 工具入参 / 出参以 JSON 字符串存放（SQLite 与 Postgres 同构）
+  input      String?
+  output     String?
+  error      String?
+  startedAt  DateTime?
+  completedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  run AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, stepNumber])
+  @@index([runId, status])
+  @@map("agentstep")
+}
+
+/// 长期记忆：AI 自动提取的用户偏好，注入后续上下文
+model UserMemory {
+  id         String    @id @default(cuid())
+  userId     String
+  /// fact | preference | goal
+  type       String    @default("fact")
+  content    String
+  /// 向量（Float32 小端序），相似度在应用层算
+  embedding  Bytes?
+  importance Float     @default(0.5)
+  confidence Float     @default(0.5)
+  lastUsed   DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([userId, importance])
+  @@index([userId, lastUsed])
+  @@map("usermemory")
+}
+
+model Conversation {
+  id      String @id @default(cuid())
+  userId  String
+  /// agent | doc | plan —— 三处工作台共用一张表，靠 surface + refId 区分归属
+  surface String @default("agent")
+  /// surface=doc 时为文档 id，surface=plan 时为计划 id
+  refId   String?
+  title   String @default("新对话")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ConversationMessage[]
+
+  @@index([userId, updatedAt])
+  @@index([userId, surface, refId, updatedAt])
+  @@map("conversation")
+}
+
+model ConversationMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  /// user | assistant | system
+  role           String
+  content        String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("conversationmessage")
+}
+
+// ──────────────────────────────────────────────────────────────────
+//  文档与知识库
+// ──────────────────────────────────────────────────────────────────
+
+model Document {
+  id      String @id @default(cuid())
+  userId  String
+  title   String
+  content String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+  @@map("document")
+}
+
+model DocumentChunk {
+  id         String @id @default(cuid())
+  userId     String
+  sourceName String
+  /// md | txt | pdf | docx
+  sourceType String @default("text")
+  chunkIndex Int
+  content    String
+  /// 向量（Float32 小端序）
+  embedding  Bytes?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sourceName])
+  @@map("documentchunk")
+}
+
+model KnowledgeDoc {
+  id         String   @id @default(cuid())
+  userId     String
+  sourceName String
+  sourceType String
+  content    String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sourceName])
+  @@index([userId])
+  @@map("knowledgedoc")
+}
+
+// ──────────────────────────────────────────────────────────────────
+//  实时频道
+// ──────────────────────────────────────────────────────────────────
+
+model ChatMessage {
+  id      String  @id @default(cuid())
+  userId  String?
+  /// user | assistant | system
+  role    String  @default("user")
+  content String
+  /// 聊天室里 AI 以虚拟用户身份发言时的角色名
+  aiRole  String?
+  /// 引用回复的目标消息 id
+  replyToId String?
+  createdAt DateTime @default(now())
+
+  user    User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  replyTo ChatMessage?  @relation("ChatReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies ChatMessage[] @relation("ChatReply")
+
+  @@index([createdAt])
+  @@index([replyToId])
+  @@map("chatmessage")
+}
+
+// ──────────────────────────────────────────────────────────────────
+//  平台：通知 / 用量 / 公告 / 模板
+// ──────────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  /// reminder | report | coach | review | system
+  type      String   @default("reminder")
+  title     String
+  content   String
+  read      Boolean  @default(false)
+  actionUrl String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+  @@index([userId, type])
+  @@map("notification")
+}
+
+/// AI token 记账。surface 与 conversation.surface 是两套口径，不要强行对齐：
+/// 这边是记账用的（agent | studio | chatroom | title | memory | split | coach）
+model TokenUsage {
+  id           String   @id @default(cuid())
+  userId       String
+  surface      String
+  /// low | high —— 模型池档位
+  tier         String
+  model        String
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  totalTokens  Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("tokenusage")
+}
+
+/// 全站公告：一份所有人看同一份，不按用户存
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  /// 撤下改成 false 即可，不必删数据
+  published Boolean  @default(true)
+  /// 是否参与「每天首次进入弹一次」
+  popup     Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published, createdAt])
+  @@map("announcement")
+}
+
+/// 新用户引导模板：注册时克隆给新用户
+model PlanTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  goal        String?
+  /// Markdown，含「## 任务安排」段落；克隆后据此生成任务
+  document    String?
+  createdAt   DateTime @default(now())
+
+  @@map("plantemplate")
+}
+
+model DocumentTemplate {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @default("")
+  createdAt DateTime @default(now())
+
+  @@map("documenttemplate")
+}

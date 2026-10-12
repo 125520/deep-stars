@@ -1,0 +1,53 @@
+# ── Deep Stars 的 pnpm 配置 ──
+#
+# 注意：pnpm 11 起，下面这些设置**不再从 .npmrc 读取**（.npmrc 只对 registry
+# 之类的 npm 兼容项生效），必须写在 pnpm-workspace.yaml 里，且用 camelCase。
+# 这条是实测踩出来的：把 node-linker 放 .npmrc 会被完全忽略，
+# 装完仍是 isolated 布局，随后 eslint 报 ERR_MODULE_NOT_FOUND。
+packages:
+  - "."
+
+# 扁平平铺依赖，不依赖目录 junction。
+# Windows 上 isolated 布局的 junction 无法被 Node 解析器穿透，
+# 会导致传递依赖「明明存在却找不到」。
+nodeLinker: hoisted
+
+# 引擎版本严格校验：本项目需要 Node >= 20.19。
+# 版本不足时直接报错，好过让 prisma 在 generate 阶段抛出难懂的异常。
+engineStrict: true
+
+# 缓存与存储全部落在项目内，受限环境（只读用户目录 / 沙箱）下也能安装。
+storeDir: .cache/pnpm-store
+stateDir: .cache/pnpm-state
+cacheDir: .cache/pnpm-cache
+
+# 本项目是独立仓库，不是 monorepo 成员。
+sharedWorkspaceLockfile: false
+
+# 关闭「跑脚本前先校验依赖并自动 install」。
+# 该特性会在每次 `pnpm <script>` 前 fork 一次 `pnpm install`。
+# 它只是便利功能、不涉及正确性，但在禁止子进程的环境里会让所有脚本直接失败。
+verifyDepsBeforeRun: false
+
+# ── 允许执行安装期构建脚本的包 ──
+# pnpm 10 起默认阻止所有 postinstall 脚本（供应链防护，默认更安全）。
+# 下面这些是原生模块或需要拉二进制的，必须放行，
+# 否则 clone 后装完跑不起来（better-sqlite3 会缺 .node 绑定）。
+#
+# 两个键都写：allowBuilds 是 pnpm 11 的规范写法（`pnpm approve-builds` 回写的
+# 就是它），onlyBuiltDependencies 是 pnpm 10 的写法。同时保留可让两种版本
+# 都正确放行 —— 少写一个的后果是构建被静默跳过，表现为运行时才炸的缺绑定错误。
+allowBuilds:
+  "@prisma/engines": true
+  better-sqlite3: true
+  esbuild: true
+  prisma: true
+
+onlyBuiltDependencies:
+  - better-sqlite3
+  - esbuild
+  - "@prisma/client"
+  - "@prisma/engines"
+  - prisma
+  - sharp
+  - unrs-resolver

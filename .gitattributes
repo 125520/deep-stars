@@ -1,0 +1,23 @@
+# 换行符统一为 LF
+#
+# 开发机是 Windows、部署目标是 Linux（Vercel），两边必须拿到**同样的字节**。
+# 不加这一条时，起作用的是各人机器上的 core.autocrlf：
+# 同一份代码在不同机器上克隆出来换行不同，diff、校验和、脚本执行都可能因此分叉。
+#
+# 注：当前仓库索引里本来就已经是 LF（`git ls-files --eol` 显示 i/lf），
+# 这个文件的作用是**把它锁住**，而不是修正现状。
+* text=auto eol=lf
+
+# 二进制文件绝不能被换行符转换碰 —— 一次转换就会损坏文件
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.db binary
+
+# lockfile 不参与 diff 统计：它在 review 里只是噪音，冲突时应当重新生成而不是手改
+pnpm-lock.yaml -diff

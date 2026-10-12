@@ -1,0 +1,53 @@
+# ── 依赖 ──
+node_modules/
+.pnpm-store/
+
+# ── Next.js ──
+.next/
+out/
+next-env.d.ts
+.vercel
+
+# TypeScript 增量编译产物：与 .next 同理，是生成物不是源码
+*.tsbuildinfo
+
+# ── 缓存与本地状态（沙箱重定向目录）──
+.cache/
+
+# ── 环境变量（绝不入库）──
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ── 数据库 ──
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+prisma/*.db
+
+# Prisma 生成物：由 `prisma generate` 产出，不手工维护，不入库
+prisma/generated/
+
+# Postgres 变体 schema：由 `pnpm db:render` 从模板渲染，部署时才需要
+prisma/schema.postgres.prisma
+
+# ── 用户上传（本地存储后端）──
+storage/
+
+# ── 测试产物 ──
+coverage/
+playwright-report/
+test-results/
+.playwright-browsers/
+
+# ── 杂项 ──
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# ── 截图工具的 Chrome 配置目录（含浏览数据，绝不入库）──
+docs/chrome-cdp-profile/
+.cache/

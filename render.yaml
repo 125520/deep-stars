@@ -1,0 +1,82 @@
+# Render 蓝图（Blueprint）
+#
+# 用法：Render Dashboard → New → Blueprint → 选中本仓库 → Apply
+# 之后只需要粘贴两个值（下面标了 sync: false 的两项），其余全部由此文件决定。
+#
+# ── 为什么用蓝图而不是在网页上填表 ──────────────────────────────
+#
+# 网页上的 New 菜单里有好几个长得很像的选项，而 **Private Service（pserv）
+# 既没有免费档、也不对外可访问**（官方文档：private services aren't reachable
+# via the public internet；免费档说明：Other service types don't support Free instances）。
+# 选错一次，构建日志一切正常、但永远拿不到公网地址。
+#
+# 把这些写进文件，选择就只剩"点 Apply"。
+#
+# ── 字段依据 ────────────────────────────────────────────────────
+#
+# 全部字段都对着 https://render.com/schema/render.yaml.json 校验过。
+# 该 schema 对服务对象设了 additionalProperties: false —— 多写一个字段就会被拒，
+# 所以这里刻意只保留必要的项。
+
+services:
+  # type 必须是 web。web 才有免费档，也只有 web/static 会被分配 onrender.com 子域。
+  - type: web
+    name: deep-stars
+    runtime: node
+
+    # free = 0.1 CPU / 512 MB。限制见 docs/deploy-render.md。
+    plan: free
+
+    # 与 Neon 数据库同区最好。可选：singapore / oregon / ohio / virginia / frankfurt
+    region: singapore
+
+    # 本仓库主分支叫 master（不是 main）。
+    # 蓝图文件与服务在同一个仓库时，省略此字段会跟随仓库默认分支；
+    # 显式写出来是为了不依赖那个默认值。
+    branch: master
+
+    # 必须走 pnpm run build —— 仓库里的 build 脚本包含 db:render（渲染 Postgres
+    # 变体）与 prisma generate。只写 next build 会报 schema 文件不存在。
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+
+    # 等于 next start。已实测它认平台的 PORT 环境变量。
+    startCommand: pnpm run start
+
+    # 部署前自动建表，省掉"在本地手动跑一次 db:push:pg"。
+    # 内部先 db:render 再 prisma db push，且**刻意不加 --accept-data-loss**：
+    # schema 漂移时它会失败并拦住这次部署，而不是静默删列。
+    # 若免费档不支持这一项，回退方案见 docs/deploy-render.md。
+    preDeployCommand: pnpm db:push:pg
+
+    healthCheckPath: /
+
+    # 以后 git push 即自动部署
+    autoDeployTrigger: commit
+
+    envVars:
+      # ── 需要你粘贴的两项 ──
+      # sync: false 表示创建蓝图时 Render 会弹框让你填，值不会进仓库。
+      - key: DATABASE_URL
+        sync: false
+
+      # ⚠️ 必须是你自己注册时用的邮箱 —— 全新数据库里没有管理员，
+      # 第一个只能靠这里引导。填错等于把管理员权限给了陌生人。
+      - key: DEEP_STARS_ADMIN_EMAIL
+        sync: false
+
+      # ── Render 自动生成的两项 ──
+      # generateValue: true 生成 base64 编码的 256 位随机值，不用你去找地方生成。
+      # 已存在时**不会**重新生成，所以后续同步蓝图不会把密钥换掉 ——
+      # 这一点很关键：DEEP_STARS_SECRET 一旦变化，所有已保存的 BYOK 密钥都会解不开，
+      # 而且不会报错，只在用户调用 AI 时静默失败。
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: DEEP_STARS_SECRET
+        generateValue: true
+
+      # ── 刻意不设 BETTER_AUTH_URL ──
+      # 应用会依次尝试 BETTER_AUTH_URL、再退回 Render 注入的
+      # RENDER_EXTERNAL_HOSTNAME，并自动补上 https://
+      # （见 src/lib/site-url.ts）。于是不必"部署完回填地址再重新部署一次"。
+      #
+      # 若将来绑定自定义域名，再在这里加 BETTER_AUTH_URL 并填完整地址。
